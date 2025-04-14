@@ -102,18 +102,15 @@ def store_activities_in_mysql(activities):
 
     df = pd.DataFrame(activities)
 
-    # ✅ Print column names to check if everything is correct
-    print("🛠 Columns in DataFrame:", df.columns)
+    # ✅ Add calculated columns
+    df["moving_time_min"] = (df["moving_time"] / 60).round(2)
+    df["elapsed_time_min"] = (df["elapsed_time"] / 60).round(2)
 
-    # ✅ Ensure correct column names before applying data types
-    expected_columns = ["id", "distance_meters", "distance_miles", "moving_time", 
-                        "elapsed_time", "total_elevation_gain", "average_speed", 
-                        "max_speed", "race"]
-    
-    missing_columns = [col for col in expected_columns if col not in df.columns]
-    if missing_columns:
-        print(f"❌ Missing Columns: {missing_columns}")
-        return  # Stop execution if required columns are missing
+    def speed_to_min_per_mile(speed_mps):
+        return (1609.34 / speed_mps) / 60 if speed_mps and speed_mps > 0 else None
+
+    df["average_pace_min_per_mile"] = df["average_speed"].apply(speed_to_min_per_mile).round(2)
+    df["max_pace_min_per_mile"] = df["max_speed"].apply(speed_to_min_per_mile).round(2)
 
     # ✅ Ensure proper data types
     df = df.astype({
@@ -122,16 +119,18 @@ def store_activities_in_mysql(activities):
         "distance_miles": "float",
         "moving_time": "int",
         "elapsed_time": "int",
+        "moving_time_min": "float",
+        "elapsed_time_min": "float",
         "total_elevation_gain": "float",
         "average_speed": "float",
+        "average_pace_min_per_mile": "float",
         "max_speed": "float",
-        "race": "int",  # Store as integer (1 = Race, 0 = Not a Race)
+        "max_pace_min_per_mile": "float",
+        "race": "int"
     }, errors="ignore")
 
-    # ✅ Convert NaN values to None for MySQL
-    df = df.where(pd.notna(df), None)
+    df = df.where(pd.notna(df), None)  # Convert NaNs to None for MySQL
 
-    # ✅ Connect to MySQL and Insert Data
     engine = create_engine(DATABASE_URL)
 
     with engine.connect() as conn:
@@ -143,19 +142,23 @@ def store_activities_in_mysql(activities):
                 distance_miles FLOAT,
                 moving_time INT,
                 elapsed_time INT,
+                moving_time_min FLOAT,
+                elapsed_time_min FLOAT,
                 total_elevation_gain FLOAT,
                 sport_type TEXT,
                 start_date TEXT,
                 start_date_local TEXT,
                 average_speed FLOAT,
+                average_pace_min_per_mile FLOAT,
                 max_speed FLOAT,
+                max_pace_min_per_mile FLOAT,
                 average_heartrate FLOAT,
-                race INT  -- 1 = Race, 0 = Not a Race
+                race INT
             )
         """))
-    
+
     df.to_sql("activities", con=engine, if_exists="replace", index=False, chunksize=500, method="multi")
-    print("✅ Data successfully inserted into MySQL!")
+    print("✅ Data with calculated metrics successfully inserted into MySQL!")
 
 # ✅ Run the Process
 ACCESS_TOKEN = get_access_token()

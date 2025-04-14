@@ -1,5 +1,6 @@
 # 🔐 Secrets and config files
 strava_tokens.json
+.streamlit/secrets.toml
 .env
 
 # 🐍 Python cache
