@@ -7,7 +7,7 @@ from pandas.tseries.offsets import MonthEnd
 import altair as alt
 
 # Load DB URL from environment
-DATABASE_URL = st.secrets.get("DATABASE_URL", os.getenv("DATABASE_URL"))
+DATABASE_URL = st.secrets.get("DATABASE_URL_NEON", os.getenv("DATABASE_URL_NEON"))
 engine = create_engine(DATABASE_URL)
 
 # Load data

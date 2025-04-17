@@ -5,3 +5,4 @@ PyMySQL
 cryptography
 streamlit
 altair
+psycopg2-binary

@@ -4,11 +4,14 @@ import os
 import pandas as pd
 from sqlalchemy import create_engine, text
 
-# ✅ Strava API Credentials (Replace with your actual values)
+# ✅ Strava API Credentials
 CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
 CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
-DATABASE_URL = os.getenv("DATABASE_URL")
 TOKEN_FILE = "strava_tokens.json"
+
+# ✅ DB URLs
+MYSQL_URL = os.getenv("DATABASE_URL")
+NEON_URL = os.getenv("DATABASE_URL_NEON")
 
 # ✅ Function to Load Tokens from File
 def load_tokens():
@@ -29,7 +32,6 @@ def get_access_token():
     if not tokens or "refresh_token" not in tokens:
         print("❌ No valid refresh token found! Reauthorize your app.")
         exit()
-        
 
     response = requests.post(
         "https://www.strava.com/oauth/token",
@@ -52,7 +54,7 @@ def get_access_token():
         print("❌ Error fetching access token:", token_data)
         exit()
 
-# ✅ Fetch Strava Activities (Basic Fields Only)
+# ✅ Fetch Strava Activities
 def fetch_strava_activities(access_token):
     ACTIVITIES_URL = "https://www.strava.com/api/v3/athlete/activities"
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -62,15 +64,13 @@ def fetch_strava_activities(access_token):
 
     while True:
         response = requests.get(ACTIVITIES_URL, headers=headers, params={"per_page": 100, "page": page})
-        
         if response.status_code != 200:
             print("❌ Error fetching activities:", response.json())
             break
 
         data = response.json()
-        
         if not data:
-            break  # No more data to fetch
+            break
 
         for activity in data:
             all_activities.append({
@@ -87,22 +87,20 @@ def fetch_strava_activities(access_token):
                 "average_speed": activity.get("average_speed"),
                 "max_speed": activity.get("max_speed"),
                 "average_heartrate": activity.get("average_heartrate"),
-                "race": 1 if activity.get("workout_type") == 1 else 0,  # Convert to 1 (Race) or 0 (Not a Race)
+                "race": 1 if activity.get("workout_type") == 1 else 0,
             })
 
-        page += 1  # Fetch next batch of activities
+        page += 1
 
     return all_activities
 
-# ✅ Store Data in MySQL (Basic Fields Only)
-def store_activities_in_mysql(activities):
+# ✅ Store Data in MySQL + Neon
+def store_activities_in_databases(activities):
     if not activities:
         print("❌ No activities found!")
         return
 
     df = pd.DataFrame(activities)
-
-    # ✅ Add calculated columns
     df["moving_time_min"] = (df["moving_time"] / 60).round(2)
     df["elapsed_time_min"] = (df["elapsed_time"] / 60).round(2)
 
@@ -112,7 +110,6 @@ def store_activities_in_mysql(activities):
     df["average_pace_min_per_mile"] = df["average_speed"].apply(speed_to_min_per_mile).round(2)
     df["max_pace_min_per_mile"] = df["max_speed"].apply(speed_to_min_per_mile).round(2)
 
-    # ✅ Ensure proper data types
     df = df.astype({
         "id": "int",
         "distance_meters": "float",
@@ -129,40 +126,46 @@ def store_activities_in_mysql(activities):
         "race": "int"
     }, errors="ignore")
 
-    df = df.where(pd.notna(df), None)  # Convert NaNs to None for MySQL
+    df = df.where(pd.notna(df), None)
 
-    engine = create_engine(DATABASE_URL)
+    create_sql = """
+        CREATE TABLE IF NOT EXISTS activities (
+            id BIGINT PRIMARY KEY,
+            name TEXT,
+            distance_meters FLOAT,
+            distance_miles FLOAT,
+            moving_time INT,
+            elapsed_time INT,
+            moving_time_min FLOAT,
+            elapsed_time_min FLOAT,
+            total_elevation_gain FLOAT,
+            sport_type TEXT,
+            start_date TEXT,
+            start_date_local TEXT,
+            average_speed FLOAT,
+            average_pace_min_per_mile FLOAT,
+            max_speed FLOAT,
+            max_pace_min_per_mile FLOAT,
+            average_heartrate FLOAT,
+            race INT
+        )
+    """
 
-    with engine.connect() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS activities (
-                id BIGINT PRIMARY KEY,
-                name TEXT,
-                distance_meters FLOAT,
-                distance_miles FLOAT,
-                moving_time INT,
-                elapsed_time INT,
-                moving_time_min FLOAT,
-                elapsed_time_min FLOAT,
-                total_elevation_gain FLOAT,
-                sport_type TEXT,
-                start_date TEXT,
-                start_date_local TEXT,
-                average_speed FLOAT,
-                average_pace_min_per_mile FLOAT,
-                max_speed FLOAT,
-                max_pace_min_per_mile FLOAT,
-                average_heartrate FLOAT,
-                race INT
-            )
-        """))
+    db_targets = [("MySQL", MYSQL_URL), ("Neon", NEON_URL)]
 
-    df.to_sql("activities", con=engine, if_exists="replace", index=False, chunksize=500, method="multi")
-    print("✅ Data with calculated metrics successfully inserted into MySQL!")
+    for label, db_url in db_targets:
+        try:
+            engine = create_engine(db_url)
+            with engine.connect() as conn:
+                conn.execute(text(create_sql))
+            df.to_sql("activities", con=engine, if_exists="replace", index=False, chunksize=500, method="multi")
+            print(f"✅ Successfully loaded data to {label}")
+        except Exception as e:
+            print(f"❌ Failed to load data to {label}: {e}")
 
 # ✅ Run the Process
-ACCESS_TOKEN = get_access_token()
-activities = fetch_strava_activities(ACCESS_TOKEN)
-store_activities_in_mysql(activities)
-
-print("🚀 Strava data successfully updated in MySQL!")
+if __name__ == "__main__":
+    ACCESS_TOKEN = get_access_token()
+    activities = fetch_strava_activities(ACCESS_TOKEN)
+    store_activities_in_databases(activities)
+    print("🚀 Strava data successfully updated in all databases!")

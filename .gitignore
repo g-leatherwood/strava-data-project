@@ -2,6 +2,7 @@
 strava_tokens.json
 .streamlit/secrets.toml
 .env
+secrets.toml
 
 # 🐍 Python cache
 __pycache__/
