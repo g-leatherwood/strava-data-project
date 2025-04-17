@@ -15,7 +15,7 @@ engine = create_engine(DATABASE_URL)
 def load_data():
     query = "SELECT * FROM activities WHERE sport_type = 'Run'"
     df = pd.read_sql(query, engine)
-    df["start_date_local"] = pd.to_datetime(df["start_date_local"])
+    df["start_date_local"] = pd.to_datetime(df["start_date_local"]).dt.tz_convert(None)
     return df
 
 df = load_data()
@@ -149,42 +149,31 @@ elif year_filter != "All time" and month_filter != "All":
     month_num = list(calendar.month_name).index(month_filter)
 
     # Define date ranges
-    start_date = pd.Timestamp(year=year_filter, month=month_num, day=1).tz_localize("UTC")
-    end_date = start_date + MonthEnd(1)
-    resample_start = start_date - pd.Timedelta(days=7)
-    resample_end = end_date + pd.Timedelta(days=7)
+    start_date = pd.Timestamp(year=year_filter, month=month_num, day=1).tz_localize("UTC").tz_convert(None)
+    end_date = (start_date + MonthEnd(1)).tz_localize("UTC").tz_convert(None)
 
-    # Pull only relevant data for resampling window
-    resample_df = df[
-        (df["start_date_local"] >= resample_start) &
-        (df["start_date_local"] <= resample_end)
+
+    # Filter full dataset to runs within the extended window
+    resample_df = df.copy()
+    resample_df["week_start"] = resample_df["start_date_local"].dt.to_period("W-MON").dt.start_time
+
+    # Filter to only activities that happened within the selected month
+    eod = end_date + pd.Timedelta(hours=23, minutes=59, seconds=59)  # Include the last day of the month
+    resample_df = resample_df[
+        (resample_df["start_date_local"] >= start_date) &
+        (resample_df["start_date_local"] <= eod)
     ]
 
-    # Resample by weeks starting Monday
-    weekly_miles = (
-        resample_df
-        .set_index("start_date_local")
-        .resample("W-MON")["distance_miles"]
+    # Group by the Monday of the week and sum distance
+    weekly_miles_df = (
+        resample_df.groupby("week_start")["distance_miles"]
         .sum()
+        .reset_index()
+        .sort_values("week_start")
     )
+    weekly_miles_df["Week"] = (weekly_miles_df["week_start"] - pd.to_timedelta(weekly_miles_df["week_start"].dt.weekday, unit='D')).dt.strftime("Week of %b %d")
 
-    # ✅ Only keep weeks that have *any* day within the selected month
-    week_starts = weekly_miles.index
-    week_ends = weekly_miles.index + pd.Timedelta(days=6)
-    weekly_miles = weekly_miles[
-        (week_starts <= end_date) & (week_ends >= start_date)
-    ]
-
-    # Convert to DataFrame and create a display label
-    weekly_miles_df = weekly_miles.reset_index()
-    weekly_miles_df.rename(columns={"start_date_local": "week_start"}, inplace=True)
-    weekly_miles_df["Week"] = weekly_miles_df["week_start"].dt.strftime("Week of %b %d")
-
-    # Sort chronologically
-    weekly_miles_df = weekly_miles_df.sort_values("week_start")
-
-    # Use Altair for proper sort + nice display
-
+    # Render chart
     st.altair_chart(
         alt.Chart(weekly_miles_df).mark_bar().encode(
             x=alt.X("Week:N", sort=weekly_miles_df["Week"].tolist(), title="Week"),
