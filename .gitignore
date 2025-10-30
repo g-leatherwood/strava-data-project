@@ -1,23 +1,24 @@
-# 🔐 Secrets and config files
+# Secrets and config files
 strava_tokens.json
 .streamlit/secrets.toml
 .env
 secrets.toml
 
-# 🐍 Python cache
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# 💻 Jupyter or notebook outputs (if any)
+# Jupyter or notebook outputs (if any)
 .ipynb_checkpoints/
+*.ipynb
 
-# 📦 Virtual environment folders (if you use one)
+# Virtual environment folders (if you use one)
 env/
 venv/
 .venv/
 
-# 🧪 VSCode or IDE files
+# VSCode or IDE files
 .vscode/
 .idea/
