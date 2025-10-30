@@ -1,6 +1,6 @@
 # Strava Data Project
 
-This project fetches your running activity data from the Strava API and stores it in a SQL database (MySQL or Postgres via Neon). It includes a Streamlit dashboard to explore your training history by year, month, and week.
+Python ETL pipeline that retrieves running activity data from the Strava API, stores it in a SQL database (MySQL for local development and Postgres via Neon for deployment), and includes a Streamlit dashboard to explore training history by year, month, and week.
 
 ## 🚀 Features
 
