@@ -10,6 +10,7 @@ import altair as alt
 DATABASE_URL = st.secrets.get("DATABASE_URL_NEON", os.getenv("DATABASE_URL_NEON"))
 engine = create_engine(DATABASE_URL)
 
+
 # Load data
 @st.cache_data
 def load_data():
@@ -17,6 +18,7 @@ def load_data():
     df = pd.read_sql(query, engine)
     df["start_date_local"] = pd.to_datetime(df["start_date_local"]).dt.tz_convert(None)
     return df
+
 
 df = load_data()
 
@@ -64,7 +66,9 @@ total_miles = filtered_df["distance_miles"].sum()
 total_miles_formated = f"{total_miles:,.2f} miles"
 total_activities = filtered_df.shape[0]
 # Total time in minutes (pace × miles)
-total_time = (filtered_df["average_pace_min_per_mile"] * filtered_df["distance_miles"]).sum()
+total_time = (
+    filtered_df["average_pace_min_per_mile"] * filtered_df["distance_miles"]
+).sum()
 total_distance = filtered_df["distance_miles"].sum()
 
 # True average pace (min/mile)
@@ -80,17 +84,16 @@ else:
 date_range_weeks = filtered_df["start_date_local"].dt.to_period("W").nunique()
 weekly_avg = total_miles / date_range_weeks if date_range_weeks > 0 else 0
 active_days = filtered_df["start_date_local"].dt.date.nunique()
-daily_miles_active = filtered_df["distance_miles"].sum() / active_days if active_days > 0 else 0
+daily_miles_active = (
+    filtered_df["distance_miles"].sum() / active_days if active_days > 0 else 0
+)
 
 # 📊 Show charts based on filter combo
 if year_filter == "All time" and month_filter == "All":
     # 🔹 Yearly mileage across all time
     st.subheader("📆 Yearly Mileage")
     yearly_miles = (
-        filtered_df
-        .set_index("start_date_local")
-        .resample("Y")["distance_miles"]
-        .sum()
+        filtered_df.set_index("start_date_local").resample("Y")["distance_miles"].sum()
     )
     yearly_miles.index = yearly_miles.index.year.astype(str)
 
@@ -99,15 +102,15 @@ if year_filter == "All time" and month_filter == "All":
     yearly_df.columns = ["Year", "Miles"]
 
     st.altair_chart(
-        alt.Chart(yearly_df).mark_bar().encode(
+        alt.Chart(yearly_df)
+        .mark_bar()
+        .encode(
             x=alt.X("Year:N", title="Year"),
             y=alt.Y("Miles:Q", title="Miles"),
-            tooltip=["Year", "Miles"]
-        ).properties(
-            width=700,
-            height=400
-        ),
-        use_container_width=True
+            tooltip=["Year", "Miles"],
+        )
+        .properties(width=700, height=400),
+        use_container_width=True,
     )
 
 elif month_filter == "All":
@@ -115,10 +118,7 @@ elif month_filter == "All":
     st.subheader(f"📆 Monthly Mileage for {year_filter}")
 
     monthly_miles = (
-        filtered_df
-        .set_index("start_date_local")
-        .resample("M")["distance_miles"]
-        .sum()
+        filtered_df.set_index("start_date_local").resample("M")["distance_miles"].sum()
     )
 
     # Build DataFrame with numeric month for sorting
@@ -131,15 +131,15 @@ elif month_filter == "All":
 
     # Plot using Altair with axis labels
     st.altair_chart(
-        alt.Chart(monthly_miles_df).mark_bar().encode(
+        alt.Chart(monthly_miles_df)
+        .mark_bar()
+        .encode(
             x=alt.X("Month:N", sort=monthly_miles_df["Month"].tolist(), title="Month"),
             y=alt.Y("distance_miles:Q", title="Miles"),
-            tooltip=["Month", "distance_miles"]
-        ).properties(
-            width=700,
-            height=400
-        ),
-        use_container_width=True
+            tooltip=["Month", "distance_miles"],
+        )
+        .properties(width=700, height=400),
+        use_container_width=True,
     )
 
 elif year_filter != "All time" and month_filter != "All":
@@ -149,19 +149,26 @@ elif year_filter != "All time" and month_filter != "All":
     month_num = list(calendar.month_name).index(month_filter)
 
     # Define date ranges
-    start_date = pd.Timestamp(year=year_filter, month=month_num, day=1).tz_localize("UTC").tz_convert(None)
+    start_date = (
+        pd.Timestamp(year=year_filter, month=month_num, day=1)
+        .tz_localize("UTC")
+        .tz_convert(None)
+    )
     end_date = (start_date + MonthEnd(1)).tz_localize("UTC").tz_convert(None)
-
 
     # Filter full dataset to runs within the extended window
     resample_df = df.copy()
-    resample_df["week_start"] = resample_df["start_date_local"].dt.to_period("W-MON").dt.start_time
+    resample_df["week_start"] = (
+        resample_df["start_date_local"].dt.to_period("W-MON").dt.start_time
+    )
 
     # Filter to only activities that happened within the selected month
-    eod = end_date + pd.Timedelta(hours=23, minutes=59, seconds=59)  # Include the last day of the month
+    eod = end_date + pd.Timedelta(
+        hours=23, minutes=59, seconds=59
+    )  # Include the last day of the month
     resample_df = resample_df[
-        (resample_df["start_date_local"] >= start_date) &
-        (resample_df["start_date_local"] <= eod)
+        (resample_df["start_date_local"] >= start_date)
+        & (resample_df["start_date_local"] <= eod)
     ]
 
     # Group by the Monday of the week and sum distance
@@ -171,19 +178,22 @@ elif year_filter != "All time" and month_filter != "All":
         .reset_index()
         .sort_values("week_start")
     )
-    weekly_miles_df["Week"] = (weekly_miles_df["week_start"] - pd.to_timedelta(weekly_miles_df["week_start"].dt.weekday, unit='D')).dt.strftime("Week of %b %d")
+    weekly_miles_df["Week"] = (
+        weekly_miles_df["week_start"]
+        - pd.to_timedelta(weekly_miles_df["week_start"].dt.weekday, unit="D")
+    ).dt.strftime("Week of %b %d")
 
     # Render chart
     st.altair_chart(
-        alt.Chart(weekly_miles_df).mark_bar().encode(
+        alt.Chart(weekly_miles_df)
+        .mark_bar()
+        .encode(
             x=alt.X("Week:N", sort=weekly_miles_df["Week"].tolist(), title="Week"),
             y=alt.Y("distance_miles:Q", title="Miles"),
-            tooltip=["Week", "distance_miles"]
-        ).properties(
-            width=700,
-            height=400
-        ),
-        use_container_width=True
+            tooltip=["Week", "distance_miles"],
+        )
+        .properties(width=700, height=400),
+        use_container_width=True,
     )
 
 else:
@@ -203,15 +213,15 @@ else:
     miles_by_year_df["Year"] = miles_by_year_df["Year"].astype(str)
 
     st.altair_chart(
-        alt.Chart(miles_by_year_df).mark_bar().encode(
+        alt.Chart(miles_by_year_df)
+        .mark_bar()
+        .encode(
             x=alt.X("Year:N", title="Year"),
             y=alt.Y("Miles:Q", title="Miles"),
-            tooltip=["Year", "Miles"]
-        ).properties(
-            width=700,
-            height=400
-        ),
-        use_container_width=True
+            tooltip=["Year", "Miles"],
+        )
+        .properties(width=700, height=400),
+        use_container_width=True,
     )
 
 # Filter selections

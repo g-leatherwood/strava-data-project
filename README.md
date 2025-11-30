@@ -37,20 +37,14 @@ cd strava-data-project
 
 ### 2. Set Environment Variables
 
-Set these in your system or with Conda:
+Create a .env file in your project directory and define the following:
 
 - `STRAVA_CLIENT_ID`
 - `STRAVA_CLIENT_SECRET`
 - `DATABASE_URL` (for MySQL)
 - `NEON_DATABASE_URL` (for Neon Postgres)
 
-```bash
-conda env config vars set STRAVA_CLIENT_ID=your_id
-conda env config vars set STRAVA_CLIENT_SECRET=your_secret
-conda env config vars set DATABASE_URL="your_mysql_url"
-conda env config vars set NEON_DATABASE_URL="your_neon_url"
-conda deactivate && conda activate yourenv
-```
+These will be acessed in the strava_api.py script. Make sure your .gitignore includes .env files.
 
 ### 3. Install Dependencies
 

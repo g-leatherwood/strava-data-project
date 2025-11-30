@@ -1,0 +1,18 @@
+[project]
+name = "strava-data-project"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "altair>=5.5.0",
+    "cryptography>=46.0.3",
+    "pandas>=2.3.3",
+    "psycopg2-binary>=2.9.11",
+    "pymysql>=1.1.2",
+    "python-dotenv>=1.2.1",
+    "requests>=2.32.5",
+    "ruff>=0.14.7",
+    "sqlalchemy>=2.0.44",
+    "streamlit>=1.51.0",
+]
