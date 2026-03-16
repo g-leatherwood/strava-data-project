@@ -22,3 +22,4 @@ venv/
 # VSCode or IDE files
 .vscode/
 .idea/
+nul
