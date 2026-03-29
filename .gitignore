@@ -26,3 +26,4 @@ nul
 
 # MacOS files
 .DS_Store
+cron.log
