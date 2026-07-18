@@ -26,4 +26,7 @@ nul
 
 # MacOS files
 .DS_Store
-cron.log
+cron.log*
+
+# Various .md files
+instructions.md

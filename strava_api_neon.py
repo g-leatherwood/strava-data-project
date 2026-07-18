@@ -2,10 +2,25 @@ import requests
 import json
 import os
 import pandas as pd
+import logging
+from logging.handlers import TimedRotatingFileHandler
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
+
 load_dotenv()
+
+# Logging Setup
+file_name = os.path.join(os.path.dirname(__file__), "cron.log")
+log_handler = TimedRotatingFileHandler(
+    file_name, when="midnight", backupCount=14, encoding="utf-8"
+)
+logging.basicConfig(
+    handlers=[log_handler],
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    level=logging.INFO,
+)
 
 # Strava API Credentials
 CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
@@ -28,14 +43,14 @@ def load_tokens():
 def save_tokens(tokens):
     with open(TOKEN_FILE, "w") as file:
         json.dump(tokens, file, indent=4)
-    print("Tokens saved to file.")
+    logging.info("Tokens saved to file.")
 
 
 # Function to Refresh Access Token Automatically
 def get_access_token():
     tokens = load_tokens()
     if not tokens or "refresh_token" not in tokens:
-        print("No valid refresh token found! Reauthorize your app.")
+        logging.error("No valid refresh token found! Reauthorize your app.")
         exit()
 
     response = requests.post(
@@ -58,7 +73,7 @@ def get_access_token():
         )
         return token_data["access_token"]
     else:
-        print("Error fetching access token:", token_data)
+        logging.error(f"Error fetching access token: {token_data}")
         exit()
 
 
@@ -75,7 +90,7 @@ def fetch_strava_activities(access_token):
             ACTIVITIES_URL, headers=headers, params={"per_page": 100, "page": page}
         )
         if response.status_code != 200:
-            print("Error fetching activities:", response.json())
+            logging.error(f"Error fetching activities: {response.json()}")
             break
 
         data = response.json()
@@ -112,7 +127,7 @@ def fetch_strava_activities(access_token):
 # Store Data in Neon
 def store_activities_in_databases(activities):
     if not activities:
-        print("No activities found!")
+        logging.warning("No activities found!")
         return
 
     df = pd.DataFrame(activities)
@@ -186,9 +201,9 @@ def store_activities_in_databases(activities):
                 chunksize=500,
                 method="multi",
             )
-            print(f"Successfully loaded data to {label}")
+            logging.info(f"Successfully loaded data to {label}")
         except Exception as e:
-            print(f"Failed to load data to {label}: {e}")
+            logging.exception(f"Failed to load data to {label}: {e}")
 
 
 # Run the Process
@@ -196,4 +211,3 @@ if __name__ == "__main__":
     ACCESS_TOKEN = get_access_token()
     activities = fetch_strava_activities(ACCESS_TOKEN)
     store_activities_in_databases(activities)
-    print("Strava data successfully updated in all databases.")
