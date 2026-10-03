@@ -1,6 +1,7 @@
 import requests
 import json
 import os
+import sys
 import pandas as pd
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -51,7 +52,7 @@ def get_access_token():
     tokens = load_tokens()
     if not tokens or "refresh_token" not in tokens:
         logging.error("No valid refresh token found! Reauthorize your app.")
-        exit()
+        sys.exit(1)
 
     response = requests.post(
         "https://www.strava.com/oauth/token",
@@ -74,7 +75,7 @@ def get_access_token():
         return token_data["access_token"]
     else:
         logging.error(f"Error fetching access token: {token_data}")
-        exit()
+        sys.exit(1)
 
 
 # Fetch Strava Activities
@@ -89,9 +90,13 @@ def fetch_strava_activities(access_token):
         response = requests.get(
             ACTIVITIES_URL, headers=headers, params={"per_page": 100, "page": page}
         )
+        # Raise rather than break: returning the pages fetched so far would
+        # replace the whole table with a partial list.
         if response.status_code != 200:
-            logging.error(f"Error fetching activities: {response.json()}")
-            break
+            raise RuntimeError(
+                f"Error fetching activities (page {page}): "
+                f"{response.status_code} {response.text}"
+            )
 
         data = response.json()
         if not data:
@@ -203,11 +208,17 @@ def store_activities_in_databases(activities):
             )
             logging.info(f"Successfully loaded data to {label}")
         except Exception as e:
-            logging.exception(f"Failed to load data to {label}: {e}")
+            raise RuntimeError(f"Failed to load data to {label}") from e
 
 
 # Run the Process
+# Any failure exits non-zero so cron, and anything chained after this script,
+# sees that the run failed.
 if __name__ == "__main__":
-    ACCESS_TOKEN = get_access_token()
-    activities = fetch_strava_activities(ACCESS_TOKEN)
-    store_activities_in_databases(activities)
+    try:
+        ACCESS_TOKEN = get_access_token()
+        activities = fetch_strava_activities(ACCESS_TOKEN)
+        store_activities_in_databases(activities)
+    except Exception:
+        logging.exception("Run failed")
+        sys.exit(1)
