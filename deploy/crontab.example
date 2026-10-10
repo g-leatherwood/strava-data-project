@@ -2,6 +2,7 @@
 # install with `crontab -e`. Times use the server's timezone. Cron runs with a
 # minimal PATH, so give the full path to uv (`which uv`).
 #
-# Refresh Strava data into Neon at 5pm and 11pm, then export every activity
-# to Dropbox. The export only runs if the refresh succeeded.
-0 17,23 * * * cd ~/strava-data-project && ~/.local/bin/uv run python strava_api.py >> ~/cron.log 2>&1 && ~/bin/export_to_dropbox.sh >> ~/cron.log 2>&1
+# Refresh Strava data into Neon at 5pm and 11pm. The loader logs to cron.log in
+# the project folder; ~/cron.log catches anything it can't log itself, such as
+# a missing package.
+0 17,23 * * * cd ~/strava-data-project && ~/.local/bin/uv run python strava_api.py >> ~/cron.log 2>&1

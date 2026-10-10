@@ -157,11 +157,9 @@ To keep your data current without running the loader by hand, run it on a schedu
 1. On the server, do setup step 1, then copy your `.env` and `strava_tokens.json` into the project folder.
 2. Add a cron job. `deploy/crontab.example` runs the loader twice a day. Edit its paths and times, then add it with `crontab -e`.
 
-The example also appends anything the commands print, such as crashes and export messages, to `~/cron.log`. The loader's own log stays in the project folder as before.
-
 After that, run the loader only on the server. Strava can issue a new refresh token each time the loader runs, and the loader saves it on the machine that ran it. If two machines both run it, one machine's copy goes out of date and stops working.
 
-`deploy/export_to_dropbox.sh` is an optional extra step. After a successful load, it exports every activity to a CSV and uploads it to Dropbox with [rclone](https://rclone.org/dropbox/), replacing the file each time. If the load fails, the export is skipped and the old CSV stays. It expects an rclone remote named `dropbox` and a CSV exporter at `~/bin/strava-cli`. Set `DROPBOX_DEST` or `STRAVA_CLI` to change either.
+The loader still logs to `cron.log` in the project folder. The example also sends anything the loader can't log itself, such as a missing-package error, to `~/cron.log`.
 
 ## What's stored
 
@@ -196,7 +194,7 @@ strava-data-project/
 ├── strava_api.py             # Loader: Strava → Neon
 ├── streamlit_app.py          # Dashboard
 ├── pages/Custom_Range.py     # Dashboard page for custom date ranges
-├── deploy/                   # Optional: example crontab and Dropbox export
+├── deploy/crontab.example    # Optional: example cron schedule
 ├── pyproject.toml, uv.lock   # Dependencies (uv)
 └── requirements.txt          # Dependencies (pip)
 ```
