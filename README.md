@@ -19,9 +19,9 @@ Python ETL pipeline that retrieves running activity data from the Strava API, st
 ```
 strava-data-project/
 ├── strava_api.py             # Script to fetch data and load into MySQL + Neon  
-├── strava_api_neon.py        # Neon-only loader, run by cron on the droplet  
+├── strava_api_neon.py        # Neon-only loader, for scheduled runs  
 ├── streamlit_app.py          # Streamlit dashboard for viewing stats  
-├── deploy/                   # Droplet crontab and Dropbox export script  
+├── deploy/                   # Optional: example crontab and Dropbox export  
 ├── strava_tokens.json        # Stores Strava tokens (excluded from git)  
 ├── requirements.txt          # Python dependencies  
 ├── .gitignore                # Prevents secrets & token files from tracking  
@@ -117,19 +117,14 @@ DATABASE_URL = "your_neon_database_url"
 
 ---
 
-## ⏰ Scheduled Refresh (Droplet)
+## ⏰ Optional: Scheduled Refresh
 
-A DigitalOcean droplet runs `strava_api_neon.py` at 5pm and 11pm Central. After each successful refresh, it exports every activity to `strava_all.csv` in Dropbox (`Apps/strava-export-gabe/`), replacing the previous file. If the refresh fails, the export is skipped and the old CSV stays.
+If you want your data to stay current without running the loader by hand, you can run it on a schedule from any always-on Linux machine, like a small cloud server. `deploy/` has a starting point:
 
-The files in `deploy/` are the source of truth for this setup:
+- `deploy/crontab.example`: runs `strava_api_neon.py` twice a day. Edit the paths and times, then add it with `crontab -e`.
+- `deploy/export_to_dropbox.sh` (optional): after a successful refresh, exports every activity to a CSV and uploads it to Dropbox with [rclone](https://rclone.org/dropbox/), replacing the file each time. If the refresh fails, the export is skipped and the old CSV stays. It expects an rclone remote named `dropbox` and a CSV exporter at `~/bin/strava-cli`. Set `DROPBOX_DEST` or `STRAVA_CLI` to change either.
 
-- `deploy/crontab`: the cron schedule. Install with `crontab deploy/crontab`, which replaces root's whole crontab.
-- `deploy/export_to_dropbox.sh`: install at `/root/bin/export_to_dropbox.sh`. It uses `strava-cli` (a separate repo) at `/root/bin/strava-cli`, which reads `DATABASE_URL_NEON` from `~/.config/strava-cli/.env`, and an rclone remote named `dropbox`.
-
-Logs:
-
-- `/root/cron.log`: Dropbox export output (and any crash output from either step).
-- `/root/strava-data-project/cron.log`: refresh output, rotated at midnight, with 14 days kept.
+`strava_api_neon.py` writes its own log, `cron.log`, next to the script. It rotates at midnight and keeps 14 days.
 
 ---
 

@@ -30,3 +30,6 @@ cron.log*
 
 # Various .md files
 instructions.md
+
+# Real server details (see private/README.md)
+private/

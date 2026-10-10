@@ -1,6 +1,0 @@
-# Root's crontab on the droplet. Times are Central (the droplet's timezone).
-# Install with `crontab deploy/crontab`; this replaces root's whole crontab.
-#
-# Refresh Strava data into Neon at 5pm and 11pm, then export every activity
-# to Dropbox. The export only runs if the refresh succeeded.
-0 17,23 * * * cd /root/strava-data-project && /root/.local/bin/uv run python strava_api_neon.py >> /root/cron.log 2>&1 && /root/bin/export_to_dropbox.sh >> /root/cron.log 2>&1
