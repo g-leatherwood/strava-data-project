@@ -4,7 +4,7 @@ Pull every activity from your Strava account into a Postgres database, then expl
 
 ## How it works
 
-1. **Loader** (`strava_api_neon.py`): uses your Strava API credentials to fetch all of your activities and writes them to an `activities` table in a [Neon](https://neon.tech) Postgres database. Each run replaces the table with a fresh copy.
+1. **Loader** (`strava_api.py`): uses your Strava API credentials to fetch all of your activities and writes them to an `activities` table in a [Neon](https://neon.tech) Postgres database. Each run replaces the table with a fresh copy.
 2. **Dashboard** (`streamlit_app.py`): reads that table and charts your runs. It only shows activities whose sport type is `Run`, but the table has all of them.
 
 You run the loader whenever you want fresh data, or on a schedule (see [Optional: Scheduled Refresh](#-optional-scheduled-refresh)).
@@ -105,7 +105,7 @@ This is a one-time step that gives the loader a refresh token it can keep using.
 From the project folder:
 
 ```bash
-uv run python strava_api_neon.py
+uv run python strava_api.py
 ```
 
 The loader prints nothing to the terminal. It writes to `cron.log` in the project folder instead. A successful run ends with:
@@ -191,7 +191,7 @@ Check `cron.log` first. Every error the loader hits is written there.
 
 ```
 strava-data-project/
-├── strava_api_neon.py        # Loader: Strava → Neon
+├── strava_api.py             # Loader: Strava → Neon
 ├── streamlit_app.py          # Dashboard
 ├── pages/Custom_Range.py     # Dashboard page for custom date ranges
 ├── deploy/                   # Optional: example crontab and Dropbox export
