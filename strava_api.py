@@ -1,13 +1,13 @@
-import requests
 import json
+import logging
 import os
 import sys
-import pandas as pd
-import logging
 from logging.handlers import TimedRotatingFileHandler
-from sqlalchemy import create_engine, text
-from dotenv import load_dotenv
 
+import pandas as pd
+import requests
+from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
 
 load_dotenv()
 
