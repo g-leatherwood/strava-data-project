@@ -7,8 +7,6 @@ Pull every activity from your Strava account into a Postgres database, then expl
 1. **Loader** (`strava_api_neon.py`): uses your Strava API credentials to fetch all of your activities and writes them to an `activities` table in a [Neon](https://neon.tech) Postgres database. Each run replaces the table with a fresh copy.
 2. **Dashboard** (`streamlit_app.py`): reads that table and charts your runs. It only shows activities whose sport type is `Run`, but the table has all of them.
 
-Neon is required: it's the database the dashboard reads. A copy in a local MySQL database is optional (see [Optional: Local MySQL Copy](#-optional-local-mysql-copy)).
-
 You run the loader whenever you want fresh data, or on a schedule (see [Optional: Scheduled Refresh](#-optional-scheduled-refresh)).
 
 ## ✅ What you need
@@ -16,7 +14,7 @@ You run the loader whenever you want fresh data, or on a schedule (see [Optional
 - A Strava account with some activities
 - Python 3.13 or newer
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) (recommended) or pip
-- A free [Neon](https://neon.tech) account for the database (required; MySQL isn't needed)
+- A free [Neon](https://neon.tech) account for the database
 - About 20 minutes
 
 ## 🔐 Setup
@@ -150,29 +148,6 @@ It opens in your browser. Use the sidebar to pick a year and month. The **Custom
 
 4. Deploy. The dashboard reads from Neon, so it updates whenever the loader runs.
 
-## 💾 Optional: Local MySQL Copy
-
-If you also want your activities in a MySQL database on your own computer, use `strava_api.py` instead of `strava_api_neon.py`. It loads the same `activities` table into both databases. The dashboard still reads only from Neon, so keep Neon set up.
-
-1. Install MySQL and create an empty database, for example `CREATE DATABASE strava;`.
-2. Add its connection string to `.env`:
-
-   ```bash
-   DATABASE_URL=mysql+pymysql://user:password@localhost:3306/strava
-   ```
-
-3. Run it from the project folder:
-
-   ```bash
-   uv run python strava_api.py
-   ```
-
-`strava_api.py` is the older loader, and it differs from `strava_api_neon.py` in a few ways:
-
-- It prints to the terminal instead of writing `cron.log`.
-- It loads each database separately: if one fails, you'll see `Failed to load data to MySQL` (or `Neon`), and it still loads the other. It ends with `Strava data successfully updated in all databases.` even when one failed, so check the lines above it.
-- If Strava returns an error partway through, it saves only the activities fetched so far, replacing what was in the table. Use `strava_api_neon.py` for scheduled runs, because it stops without saving.
-
 ## ⏰ Optional: Scheduled Refresh
 
 To keep your data current without running the loader by hand, run it on a schedule from any always-on Linux machine, like a small cloud server:
@@ -217,7 +192,6 @@ Check `cron.log` first. Every error the loader hits is written there.
 ```
 strava-data-project/
 ├── strava_api_neon.py        # Loader: Strava → Neon
-├── strava_api.py             # Optional loader: Strava → local MySQL + Neon
 ├── streamlit_app.py          # Dashboard
 ├── pages/Custom_Range.py     # Dashboard page for custom date ranges
 ├── deploy/                   # Optional: example crontab and Dropbox export
