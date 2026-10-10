@@ -5,11 +5,11 @@ Pull every activity from your Strava account into a Postgres database, then expl
 ## How it works
 
 1. **Loader** (`strava_api.py`): uses your Strava API credentials to fetch all of your activities and writes them to an `activities` table in a [Neon](https://neon.tech) Postgres database. Each run replaces the table with a fresh copy.
-2. **Dashboard** (`streamlit_app.py`): reads that table and charts your runs. It only shows activities whose sport type is `Run`, but the table has all of them.
+2. **Dashboard** (`streamlit_app.py`): reads that table and charts your runs. It only shows activities whose sport type is exactly `Run` (so not `TrailRun` or `VirtualRun`), but the table has all of them.
 
-You run the loader whenever you want fresh data, or on a schedule (see [Optional: Scheduled Refresh](#-optional-scheduled-refresh)).
+You run the loader whenever you want fresh data, or on a schedule (see [Optional: Scheduled Refresh](#optional-scheduled-refresh)).
 
-## ✅ What you need
+## What you need
 
 - A Strava account with some activities
 - Python 3.13 or newer
@@ -17,7 +17,7 @@ You run the loader whenever you want fresh data, or on a schedule (see [Optional
 - A free [Neon](https://neon.tech) account for the database
 - About 20 minutes
 
-## 🔐 Setup
+## Setup
 
 ### 1. Clone the repo and install dependencies
 
@@ -27,7 +27,7 @@ cd strava-data-project
 uv sync
 ```
 
-Without uv:
+Without uv (`python3 --version` must be 3.13 or newer):
 
 ```bash
 python3 -m venv .venv
@@ -35,7 +35,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-If you use pip, drop the `uv run` prefix from the commands below.
+If you use pip, drop the `uv run` prefix from the commands below, and run `source .venv/bin/activate` again in each new terminal.
 
 ### 2. Create a Strava API application
 
@@ -86,7 +86,7 @@ This is a one-time step that gives the loader a refresh token it can keep using.
    curl -X POST https://www.strava.com/oauth/token \
      -d client_id=YOUR_CLIENT_ID \
      -d client_secret=YOUR_CLIENT_SECRET \
-     -d code=THE_CODE_FROM_STEP_3 \
+     -d code=YOUR_CODE \
      -d grant_type=authorization_code
    ```
 
@@ -102,23 +102,21 @@ This is a one-time step that gives the loader a refresh token it can keep using.
 
 ### 6. Load your data
 
-From the project folder:
+Run the loader from the project folder, because it looks for `strava_tokens.json` in the current directory:
 
 ```bash
 uv run python strava_api.py
 ```
 
-The loader prints nothing to the terminal. It writes to `cron.log` in the project folder instead. A successful run ends with:
+The loader prints nothing to the terminal. It writes to `cron.log` in the project folder instead, starting a new file each midnight and keeping 14 days. A successful run ends with:
 
 ```
 2026-01-15 17:01:13 INFO Successfully loaded data to Neon
 ```
 
-It takes about a minute for a few thousand activities. Each run asks Strava for a new access token and saves it to `strava_tokens.json`, so you never have to repeat step 5 unless you revoke access.
+It takes about a minute for a few thousand activities. Each run uses the refresh token to get a new access token from Strava and saves the latest tokens to `strava_tokens.json`, so you don't have to repeat step 5 unless you revoke access.
 
-Run the loader from the project folder: it looks for `strava_tokens.json` in the current directory.
-
-## 📊 Run the dashboard
+## Run the dashboard
 
 ### On your computer
 
@@ -136,6 +134,8 @@ Run the loader from the project folder: it looks for `strava_tokens.json` in the
 
 It opens in your browser. Use the sidebar to pick a year and month. The **Custom Range** page in the sidebar charts any date range.
 
+The dashboard caches your data when it starts, so it won't show activities loaded after that. Restart it (Ctrl+C, then run the command again) to pick up new data.
+
 ### On Streamlit Community Cloud (free hosting)
 
 1. Fork this repo to your GitHub account.
@@ -146,22 +146,24 @@ It opens in your browser. Use the sidebar to pick a year and month. The **Custom
    DATABASE_URL_NEON = "postgresql://..."
    ```
 
-4. Deploy. The dashboard reads from Neon, so it updates whenever the loader runs.
+4. Deploy.
 
-## ⏰ Optional: Scheduled Refresh
+The hosted dashboard also caches your data. To see newly loaded activities, open your app's **Manage app** panel and choose **Reboot app**. An app that went to sleep after a stretch with no visitors also starts fresh when it wakes up.
+
+## Optional: Scheduled Refresh
 
 To keep your data current without running the loader by hand, run it on a schedule from any always-on Linux machine, like a small cloud server:
 
 1. On the server, do setup step 1, then copy your `.env` and `strava_tokens.json` into the project folder.
 2. Add a cron job. `deploy/crontab.example` runs the loader twice a day. Edit its paths and times, then add it with `crontab -e`.
 
-After that, run the loader only on the server. Strava can issue a new refresh token each time the loader runs, and the loader saves it locally. If two machines both run it, one machine's copy goes out of date and stops working.
+The example also appends anything the commands print, such as crashes and export messages, to `~/cron.log`. The loader's own log stays in the project folder as before.
+
+After that, run the loader only on the server. Strava can issue a new refresh token each time the loader runs, and the loader saves it on the machine that ran it. If two machines both run it, one machine's copy goes out of date and stops working.
 
 `deploy/export_to_dropbox.sh` is an optional extra step. After a successful load, it exports every activity to a CSV and uploads it to Dropbox with [rclone](https://rclone.org/dropbox/), replacing the file each time. If the load fails, the export is skipped and the old CSV stays. It expects an rclone remote named `dropbox` and a CSV exporter at `~/bin/strava-cli`. Set `DROPBOX_DEST` or `STRAVA_CLI` to change either.
 
-`cron.log` rotates at midnight and keeps 14 days.
-
-## 🗄️ What's stored
+## What's stored
 
 One table, `activities`, with a row per activity:
 
@@ -176,7 +178,7 @@ One table, `activities`, with a row per activity:
 | `average_heartrate` | Beats per minute, if recorded |
 | `race` | `1` if marked as a race on Strava |
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 Check `cron.log` first. Every error the loader hits is written there.
 
@@ -187,7 +189,7 @@ Check `cron.log` first. Every error the loader hits is written there.
 - **`Failed to load data to Neon`**: check `DATABASE_URL_NEON` in `.env`. It should start with `postgresql://`.
 - **Dashboard shows an error about `DATABASE_URL_NEON`**: create `.streamlit/secrets.toml` (or the Streamlit Cloud secret) as shown above. The dashboard doesn't read `.env`.
 
-## 📁 Project structure
+## Project structure
 
 ```
 strava-data-project/
@@ -201,7 +203,7 @@ strava-data-project/
 
 Not committed: `.env`, `strava_tokens.json`, `.streamlit/secrets.toml`, `cron.log`.
 
-## 🧠 Author
+## Author
 
 [Gabe Leatherwood](https://github.com/g-leatherwood)
 
