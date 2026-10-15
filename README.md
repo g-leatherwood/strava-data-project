@@ -108,7 +108,7 @@ Run the loader from the project folder, because it looks for `strava_tokens.json
 uv run python strava_api.py
 ```
 
-The loader prints nothing to the terminal. It writes to `cron.log` in the project folder instead, starting a new file each midnight and keeping 14 days. A successful run ends with:
+The loader logs its progress to the terminal. A successful run ends with:
 
 ```
 2026-01-15 17:01:13 INFO Successfully loaded data to Neon
@@ -156,10 +156,11 @@ To keep your data current without running the loader by hand, run it on a schedu
 
 1. On the server, do setup step 1, then copy your `.env` and `strava_tokens.json` into the project folder.
 2. Add a cron job. `deploy/crontab.example` runs the loader twice a day. Edit its paths and times, then add it with `crontab -e`.
+3. Rotate the log. `deploy/logrotate.example` keeps 14 days of it. Edit its path, then copy it to `/etc/logrotate.d/`.
 
 After that, run the loader only on the server. Strava can issue a new refresh token each time the loader runs, and the loader saves it on the machine that ran it. If two machines both run it, one machine's copy goes out of date and stops working.
 
-The loader still logs to `cron.log` in the project folder. The example also sends anything the loader can't log itself, such as a missing-package error, to `~/cron.log`.
+The cron job writes everything the run prints to `logs/cron.log` in the project folder, including errors from before the loader starts, such as a missing package.
 
 ## What's stored
 
@@ -178,7 +179,7 @@ One table, `activities`, with a row per activity:
 
 ## Troubleshooting
 
-Check `cron.log` first. Every error the loader hits is written there.
+Check the loader's output first: the terminal for a manual run, or `logs/cron.log` on a server. Every error the loader hits is logged.
 
 - **`No valid refresh token found! Reauthorize your app.`**: `strava_tokens.json` is missing, or you ran the loader from another folder. Run it from the project folder, or redo setup step 5.
 - **`Error fetching access token`**: the Client ID or Secret in `.env` is wrong, or the refresh token was revoked (for example, by removing the app under Strava's **Settings → My Apps**). Check `.env`, then redo step 5.
@@ -195,11 +196,12 @@ strava-data-project/
 ├── streamlit_app.py          # Dashboard
 ├── pages/Custom_Range.py     # Dashboard page for custom date ranges
 ├── deploy/crontab.example    # Optional: example cron schedule
+├── deploy/logrotate.example  # Optional: rotation for the cron log
 ├── pyproject.toml, uv.lock   # Dependencies (uv)
 └── requirements.txt          # Dependencies (pip)
 ```
 
-Not committed: `.env`, `strava_tokens.json`, `.streamlit/secrets.toml`, `cron.log`.
+Not committed: `.env`, `strava_tokens.json`, `.streamlit/secrets.toml`, `logs/`.
 
 ## Author
 

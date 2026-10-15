@@ -1,0 +1,14 @@
+# Example logrotate config for the cron log: a new file each day, 14 days kept,
+# older days gzipped. logrotate needs an absolute path, so replace
+# /path/to/strava-data-project with your own, then install with:
+#   sudo cp deploy/logrotate.example /etc/logrotate.d/strava-data-project
+/path/to/strava-data-project/logs/*.log {
+    daily
+    rotate 14
+    dateext
+    dateyesterday
+    compress
+    delaycompress
+    missingok
+    notifempty
+}

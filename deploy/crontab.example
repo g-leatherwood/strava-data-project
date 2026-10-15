@@ -2,7 +2,7 @@
 # install with `crontab -e`. Times use the server's timezone. Cron runs with a
 # minimal PATH, so give the full path to uv (`which uv`).
 #
-# Refresh Strava data into Neon at 5pm and 11pm. The loader logs to cron.log in
-# the project folder; ~/cron.log catches anything it can't log itself, such as
-# a missing package.
-0 17,23 * * * cd ~/strava-data-project && ~/.local/bin/uv run python strava_api.py >> ~/cron.log 2>&1
+# Refresh Strava data into Neon at 5pm and 11pm. Everything the run prints,
+# including errors from before the loader starts (such as a missing package),
+# goes to logs/cron.log in the project folder. deploy/logrotate.example rotates it.
+0 17,23 * * * cd ~/strava-data-project && mkdir -p logs && ~/.local/bin/uv run python strava_api.py >> logs/cron.log 2>&1
