@@ -184,6 +184,7 @@ Check the loader's output first: the terminal for a manual run, or `logs/cron.lo
 - **`No valid refresh token found! Reauthorize your app.`**: `strava_tokens.json` is missing, or you ran the loader from another folder. Run it from the project folder, or redo setup step 5.
 - **`Error fetching access token`**: the Client ID or Secret in `.env` is wrong, or the refresh token was revoked (for example, by removing the app under Strava's **Settings → My Apps**). Check `.env`, then redo step 5.
 - **`Error fetching activities` with `activity:read_permission`**: the token was authorized without an activity scope. Redo step 5 with the exact URL shown.
+- **`Error fetching activities` with status `500`-`504`**: Strava's servers had a problem. The loader retries these, and network errors, 3 times over about 35 seconds before failing, logging a `Request failed ... retrying` warning each time. If it still fails, the next run starts over, and the data from the last good run stays in place.
 - **`Error fetching activities` with status `429`**: you've hit Strava's [rate limits](https://developers.strava.com/docs/rate-limits/). Wait 15 minutes. Each run makes about one request per 100 activities.
 - **`Failed to load data to Neon`**: check `DATABASE_URL_NEON` in `.env`. It should start with `postgresql://`.
 - **Dashboard shows an error about `DATABASE_URL_NEON`**: create `.streamlit/secrets.toml` (or the Streamlit Cloud secret) as shown above. The dashboard doesn't read `.env`.

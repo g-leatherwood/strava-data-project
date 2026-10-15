@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import sys
+import time
 
 import pandas as pd
 import requests
@@ -73,6 +74,30 @@ def get_access_token():
         sys.exit(1)
 
 
+# GET with retries for Strava's server errors and network failures. A 429
+# isn't retried: rate limits reset on a 15-minute window, so retrying soon
+# only spends more of the quota. Returns the last response once retries run
+# out, so the caller still sees the final status.
+def get_with_retry(url, attempts=4, **kwargs):
+    for attempt in range(1, attempts + 1):
+        try:
+            response = requests.get(url, timeout=30, **kwargs)
+        except requests.RequestException as e:
+            if attempt == attempts:
+                raise
+            problem = repr(e)
+        else:
+            if response.status_code < 500 or attempt == attempts:
+                return response
+            problem = f"{response.status_code} {response.text}"
+        delay = 5 * 2 ** (attempt - 1)
+        logging.warning(
+            f"Request failed ({problem}); retrying in {delay}s "
+            f"(attempt {attempt + 1} of {attempts})"
+        )
+        time.sleep(delay)
+
+
 # Fetch Strava Activities
 def fetch_strava_activities(access_token):
     ACTIVITIES_URL = "https://www.strava.com/api/v3/athlete/activities"
@@ -82,7 +107,7 @@ def fetch_strava_activities(access_token):
     page = 1
 
     while True:
-        response = requests.get(
+        response = get_with_retry(
             ACTIVITIES_URL, headers=headers, params={"per_page": 100, "page": page}
         )
         # Raise rather than break: returning the pages fetched so far would
