@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import sys
-from logging.handlers import TimedRotatingFileHandler
 
 import pandas as pd
 import requests
@@ -12,12 +11,8 @@ from sqlalchemy import create_engine, text
 load_dotenv()
 
 # Logging Setup
-file_name = os.path.join(os.path.dirname(__file__), "cron.log")
-log_handler = TimedRotatingFileHandler(
-    file_name, when="midnight", backupCount=14, encoding="utf-8"
-)
+# Logs go to stderr. Under cron, redirect them to a file (see deploy/).
 logging.basicConfig(
-    handlers=[log_handler],
     format="%(asctime)s %(levelname)s %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
     level=logging.INFO,
