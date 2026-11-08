@@ -120,17 +120,11 @@ It takes about a minute for a few thousand activities. Each run uses the refresh
 
 ### On your computer
 
-1. Create `.streamlit/secrets.toml` in the project folder:
+The dashboard reads `DATABASE_URL_NEON` from the same `.env` as the loader (setup step 4), so there's nothing else to configure. Start it:
 
-   ```toml
-   DATABASE_URL_NEON = "postgresql://user:password@ep-example-123456.us-east-2.aws.neon.tech/neondb?sslmode=require"
-   ```
-
-2. Start it:
-
-   ```bash
-   uv run streamlit run streamlit_app.py
-   ```
+```bash
+uv run streamlit run streamlit_app.py
+```
 
 It opens in your browser. Use the sidebar to pick a year and month. The **Custom Range** page in the sidebar charts any date range.
 
@@ -140,11 +134,13 @@ The dashboard caches your data when it starts, so it won't show activities loade
 
 1. Fork this repo to your GitHub account.
 2. Go to [share.streamlit.io](https://share.streamlit.io), click **Create app**, and pick your fork with `streamlit_app.py` as the main file.
-3. Under **Advanced settings**, set Python to 3.13 or newer, and under **Secrets** paste the same line as your `secrets.toml`:
+3. Under **Advanced settings**, set Python to 3.13 or newer, and under **Secrets** paste this line, with the connection string from your `.env`:
 
    ```toml
    DATABASE_URL_NEON = "postgresql://..."
    ```
+
+   The hosted app reads this secret instead of `.env`, which isn't committed. A local `.streamlit/secrets.toml` with the same line works too, and wins over `.env`.
 
 4. Deploy.
 
@@ -206,7 +202,7 @@ Check the loader's output first: the terminal for a manual run, or `logs/cron.lo
 - **`Error fetching activities` with status `429`**: you've hit Strava's [rate limits](https://developers.strava.com/docs/rate-limits/). Wait 15 minutes. A run makes about one request per 200 activities, plus one per shoe you haven't retired. The first run looks up every shoe you've ever used, so it makes more.
 - **`Could not fetch gear ...` warning**: Strava didn't return one shoe's details. The run still finishes, and the shoe is looked up again on the next run.
 - **`Failed to read from Neon` or `Failed to load data to Neon`**: check `DATABASE_URL_NEON` in `.env`. It should start with `postgresql://`. A failed load changes nothing, so the data from the last good run stays in place.
-- **Dashboard shows an error about `DATABASE_URL_NEON`**: create `.streamlit/secrets.toml` (or the Streamlit Cloud secret) as shown above. The dashboard doesn't read `.env`.
+- **Dashboard shows `No database connection string`**: on your computer, set `DATABASE_URL_NEON` in `.env` (setup step 4). On Streamlit Community Cloud, add it under the app's **Settings → Secrets**.
 
 ## Project structure
 
@@ -215,6 +211,7 @@ strava-data-project/
 ├── strava_api.py             # Loader: Strava → Neon
 ├── streamlit_app.py          # Dashboard
 ├── pages/Custom_Range.py     # Dashboard page for custom date ranges
+├── dashboard_db.py           # Dashboard's database connection setting
 ├── deploy/crontab.example    # Optional: example cron schedule
 ├── deploy/logrotate.example  # Optional: rotation for the cron log
 ├── pyproject.toml, uv.lock   # Dependencies (uv)

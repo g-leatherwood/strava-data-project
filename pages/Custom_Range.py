@@ -1,10 +1,10 @@
-import os
-
 import pandas as pd
 import streamlit as st
 from sqlalchemy import create_engine
 
-DATABASE_URL = st.secrets.get("DATABASE_URL_NEON", os.getenv("DATABASE_URL_NEON"))
+from dashboard_db import database_url
+
+DATABASE_URL = database_url()
 engine = create_engine(DATABASE_URL)
 
 

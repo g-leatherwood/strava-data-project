@@ -1,5 +1,4 @@
 import calendar
-import os
 
 import altair as alt
 import pandas as pd
@@ -7,8 +6,10 @@ import streamlit as st
 from pandas.tseries.offsets import MonthEnd
 from sqlalchemy import create_engine
 
-# Load DB URL from environment
-DATABASE_URL = st.secrets.get("DATABASE_URL_NEON", os.getenv("DATABASE_URL_NEON"))
+from dashboard_db import database_url
+
+# Database connection: Streamlit secrets, or .env for local runs
+DATABASE_URL = database_url()
 engine = create_engine(DATABASE_URL)
 
 
