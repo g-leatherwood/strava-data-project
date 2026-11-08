@@ -33,5 +33,5 @@ logs/
 # Various .md files
 instructions.md
 
-# Real server details (see private/README.md)
+# Real server details and my runbook (see private/RUNBOOK.md)
 private/

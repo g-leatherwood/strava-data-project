@@ -4,7 +4,7 @@ Pull every activity from your Strava account into a Postgres database, then expl
 
 ## How it works
 
-1. **Loader** (`strava_api.py`): uses your Strava API credentials to fetch all of your activities and writes them to an `activities` table in a [Neon](https://neon.tech) Postgres database. Each run replaces the table with a fresh copy.
+1. **Loader** (`strava_api.py`): uses your Strava API credentials to fetch all of your activities and writes them to an `activities` table in a [Neon](https://neon.tech) Postgres database, along with the shoe you wore and the town each activity started in. Each run updates the table in place: new activities are added, changed ones are overwritten, and ones you deleted on Strava are removed.
 2. **Dashboard** (`streamlit_app.py`): reads that table and charts your runs. It only shows activities whose sport type is exactly `Run` (so not `TrailRun` or `VirtualRun`), but the table has all of them.
 
 You run the loader whenever you want fresh data, or on a schedule (see [Optional: Scheduled Refresh](#optional-scheduled-refresh)).
@@ -164,7 +164,7 @@ The cron job writes everything the run prints to `logs/cron.log` in the project 
 
 ## What's stored
 
-One table, `activities`, with a row per activity:
+Two tables. `activities` has a row per activity:
 
 | Column | What it is |
 |---|---|
@@ -175,7 +175,25 @@ One table, `activities`, with a row per activity:
 | `average_speed`, `max_speed` | Meters per second (`*_pace_min_per_mile` columns have pace) |
 | `total_elevation_gain` | Meters |
 | `average_heartrate` | Beats per minute, if recorded |
-| `race` | `1` if marked as a race on Strava |
+| `race` | `1` if marked as a race on Strava (`workout_type` has Strava's own value) |
+| `city`, `county`, `state`, `country` | The nearest town to where the activity started, looked up offline from [GeoNames](https://www.geonames.org) data. Empty for activities without GPS, such as manual entries |
+| `start_lat`, `start_lng`, `end_lat`, `end_lng` | Start and end coordinates |
+| `summary_polyline` | The route outline, in Google's [encoded polyline](https://developers.google.com/maps/documentation/utilities/polylinealgorithm) format |
+| `timezone` | Strava's timezone for the activity |
+| `gear_id`, `gear_name` | The shoe (or bike) used. Several shoes can share a name, so group by `gear_id` to tell them apart |
+| `device_name`, `trainer`, `commute`, `manual`, `private`, `visibility` | Recording device and Strava's flags (`trainer` means a treadmill or indoor trainer) |
+| `max_heartrate`, `average_cadence`, `average_temp`, `elev_high`, `elev_low`, `suffer_score` | More stats, if recorded. `suffer_score` is Strava's Relative Effort |
+| `average_watts`, `weighted_average_watts`, `max_watts`, `kilojoules` | Power, if recorded |
+| `kudos_count`, `comment_count`, `achievement_count`, `pr_count`, `athlete_count`, `total_photo_count` | Counts from Strava |
+| `raw` | The whole activity as Strava sent it (JSON), for any field without its own column |
+
+`gear` has a row per shoe or bike you've used: `id`, `name`, `brand_name`, `model_name`, `nickname`, `description`, `distance_meters` and `distance_miles` (Strava's running total), `retired`, `is_primary` and `raw`. The loader looks up each one once, and after that only the ones you haven't retired, since their mileage keeps changing.
+
+Both tables use Strava's ID as the primary key, so the database refuses a second row for the same activity or shoe.
+
+The coordinates and routes show where you run, including from home, so keep the database private.
+
+**Upgrading from an older version:** older versions dropped and rebuilt the table on every run. The first run of this version keeps that old table as `activities_backup`. Once you've checked the new one, remove the backup by running `DROP TABLE activities_backup;` in Neon's SQL Editor.
 
 ## Troubleshooting
 
@@ -185,8 +203,9 @@ Check the loader's output first: the terminal for a manual run, or `logs/cron.lo
 - **`Error fetching access token`**: the Client ID or Secret in `.env` is wrong, or the refresh token was revoked (for example, by removing the app under Strava's **Settings → My Apps**). Check `.env`, then redo step 5.
 - **`Error fetching activities` with `activity:read_permission`**: the token was authorized without an activity scope. Redo step 5 with the exact URL shown.
 - **`Error fetching activities` with status `500`-`504`**: Strava's servers had a problem. The loader retries these, and network errors, 3 times over about 35 seconds before failing, logging a `Request failed ... retrying` warning each time. If it still fails, the next run starts over, and the data from the last good run stays in place.
-- **`Error fetching activities` with status `429`**: you've hit Strava's [rate limits](https://developers.strava.com/docs/rate-limits/). Wait 15 minutes. Each run makes about one request per 100 activities.
-- **`Failed to load data to Neon`**: check `DATABASE_URL_NEON` in `.env`. It should start with `postgresql://`.
+- **`Error fetching activities` with status `429`**: you've hit Strava's [rate limits](https://developers.strava.com/docs/rate-limits/). Wait 15 minutes. A run makes about one request per 200 activities, plus one per shoe you haven't retired. The first run looks up every shoe you've ever used, so it makes more.
+- **`Could not fetch gear ...` warning**: Strava didn't return one shoe's details. The run still finishes, and the shoe is looked up again on the next run.
+- **`Failed to read from Neon` or `Failed to load data to Neon`**: check `DATABASE_URL_NEON` in `.env`. It should start with `postgresql://`. A failed load changes nothing, so the data from the last good run stays in place.
 - **Dashboard shows an error about `DATABASE_URL_NEON`**: create `.streamlit/secrets.toml` (or the Streamlit Cloud secret) as shown above. The dashboard doesn't read `.env`.
 
 ## Project structure

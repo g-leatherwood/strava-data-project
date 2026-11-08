@@ -1,7 +1,8 @@
-import streamlit as st
-import pandas as pd
-from sqlalchemy import create_engine
 import os
+
+import pandas as pd
+import streamlit as st
+from sqlalchemy import create_engine
 
 DATABASE_URL = st.secrets.get("DATABASE_URL_NEON", os.getenv("DATABASE_URL_NEON"))
 engine = create_engine(DATABASE_URL)
@@ -9,7 +10,10 @@ engine = create_engine(DATABASE_URL)
 
 @st.cache_data
 def load_data():
-    query = "SELECT * FROM activities WHERE sport_type = 'Run'"
+    query = (
+        "SELECT start_date_local, distance_miles, average_pace_min_per_mile, "
+        "total_elevation_gain FROM activities WHERE sport_type = 'Run'"
+    )
     df = pd.read_sql(query, engine)
     df["start_date_local"] = pd.to_datetime(df["start_date_local"]).dt.tz_convert(None)
     return df
