@@ -6,3 +6,10 @@
 # including errors from before the loader starts (such as a missing package),
 # goes to logs/cron.log in the project folder. deploy/logrotate.example rotates it.
 0 17,23 * * * cd ~/strava-data-project && mkdir -p logs && ~/.local/bin/uv run python strava_api.py >> logs/cron.log 2>&1
+#
+# Optional: get an email when a run fails or doesn't happen. Create a check at
+# https://healthchecks.io with the same schedule and timezone, then use this
+# line instead of the one above, with your check's ping URL in both places.
+# The first curl reports that the run started; the second reports the loader's
+# exit status (0 is success, anything else is a failure).
+# 0 17,23 * * * cd ~/strava-data-project && mkdir -p logs && { curl -fsS -m 10 --retry 3 -o /dev/null https://hc-ping.com/your-check-id/start; ~/.local/bin/uv run python strava_api.py; curl -fsS -m 10 --retry 3 -o /dev/null https://hc-ping.com/your-check-id/$?; } >> logs/cron.log 2>&1

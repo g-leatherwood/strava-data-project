@@ -153,6 +153,7 @@ To keep your data current without running the loader by hand, run it on a schedu
 1. On the server, do setup step 1, then copy your `.env` and `strava_tokens.json` into the project folder.
 2. Add a cron job. `deploy/crontab.example` runs the loader twice a day. Edit its paths and times, then add it with `crontab -e`.
 3. Rotate the log. `deploy/logrotate.example` keeps 14 days of it. Edit its path, then copy it to `/etc/logrotate.d/`.
+4. Optional: get an email when a run fails or doesn't happen. Create a free check at [Healthchecks.io](https://healthchecks.io) with the same schedule and timezone as your cron job, then use the second line in `deploy/crontab.example`, which pings the check when each run starts and ends.
 
 After that, run the loader only on the server. Strava can issue a new refresh token each time the loader runs, and the loader saves it on the machine that ran it. If two machines both run it, one machine's copy goes out of date and stops working.
 
